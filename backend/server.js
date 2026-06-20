@@ -6,70 +6,71 @@ import mongoose from "mongoose";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import passport from "passport";
 
 import configurePassport from "./config/passport.js";
 
-configurePassport(); // 🔥 IMPORTANT LINE
-
-import passport from "passport";
-
+// Routes
 import authApp from "./APIs/authapi.js";
 import rescueApp from "./APIs/rescueapi.js";
 import volunteerApp from "./APIs/volunteerapi.js";
 import donationApp from "./APIs/donationapi.js";
 import adminApp from "./APIs/adminapi.js";
 
-// 🔥 DEBUG (remove later if everything works)
-console.log("CWD:", process.cwd());
-console.log("CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
+configurePassport(); 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = exp();
 
-// CORS
+/* ================= MIDDLEWARE ================= */
+
+// CORS (IMPORTANT for frontend + Google redirect)
 app.use(
   cors({
-    origin: true,
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
     credentials: true
   })
 );
 
-// JSON parser
 app.use(exp.json());
-
-// Passport init
 app.use(passport.initialize());
 
-// Static uploads folder (absolute path so it works no matter where node was launched from)
+/* ================= STATIC FILES ================= */
 app.use("/uploads", exp.static(path.join(__dirname, "uploads")));
 
-// MongoDB connection
+/* ================= DATABASE ================= */
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("db connected");
-  })
-  .catch((err) => {
-    console.log(err);
-  });
+  .then(() => console.log("DB connected"))
+  .catch((err) => console.log("DB error:", err));
 
-// Routes
+/* ================= ROUTES ================= */
+
+// AUTH (IMPORTANT: this decides /auth/google route)
 app.use("/auth", authApp);
+
 app.use("/rescue", rescueApp);
 app.use("/volunteer", volunteerApp);
 app.use("/donation", donationApp);
 app.use("/admin", adminApp);
 
-// Error handler
+/* ================= HEALTH CHECK ================= */
+app.get("/", (req, res) => {
+  res.send("ANVIA backend running ");
+});
+
+/* ================= ERROR HANDLER ================= */
 app.use((err, req, res, next) => {
   res.status(500).json({
     message: err.message
   });
 });
 
-// Server start
-app.listen(process.env.PORT, () => {
-  console.log(`server running on port ${process.env.PORT}`);
+/* ================= START SERVER ================= */
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
