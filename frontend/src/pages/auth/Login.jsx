@@ -50,7 +50,11 @@ function Login() {
   function googleLogin() {
     const redirectTo = location.state?.from?.pathname || "/";
     sessionStorage.setItem("anviaRedirectAfterLogin", redirectTo);
-    window.location.href = `${API_BASE_URL}/auth/google`;
+
+    // Strip any trailing slash(es) from API_BASE_URL before appending the path,
+    // so we never end up with a double slash like ".com//auth/google".
+    const base = API_BASE_URL.replace(/\/+$/, "");
+    window.location.href = `${base}/auth/google`;
   }
 
   return (
@@ -128,19 +132,18 @@ function Login() {
             {submitting ? "Logging In..." : "Login"}
           </button>
 
-         <button
-  type="button"
-  onClick={googleLogin}
-  className="w-full border border-[#355C46] text-[#355C46] py-4 rounded-xl font-semibold hover:bg-[#355C46] hover:text-white transition flex items-center justify-center gap-3"
->
-  <img
-    src="/images/google-logo.png"
-    alt="Google"
-    className="w-7 h-7 object-contain"
-  />
-
-  Continue with Google
-</button>
+          <button
+            type="button"
+            onClick={googleLogin}
+            className="w-full border border-[#355C46] text-[#355C46] py-4 rounded-xl font-semibold hover:bg-[#355C46] hover:text-white transition flex items-center justify-center gap-3"
+          >
+            <img
+              src="/images/google-logo.png"
+              alt="Google"
+              className="w-7 h-7 object-contain"
+            />
+            Continue with Google
+          </button>
 
           <p className="text-center text-gray-600">
             New to ANVIA?{" "}
