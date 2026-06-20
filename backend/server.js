@@ -6,71 +6,82 @@ import mongoose from "mongoose";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import passport from "passport";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import configurePassport from "./config/passport.js";
 
-// Routes
+configurePassport(); 
+
+import passport from "passport";
+
 import authApp from "./APIs/authapi.js";
 import rescueApp from "./APIs/rescueapi.js";
 import volunteerApp from "./APIs/volunteerapi.js";
 import donationApp from "./APIs/donationapi.js";
 import adminApp from "./APIs/adminapi.js";
 
-configurePassport(); 
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+console.log("CWD:", process.cwd());
+console.log("CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
 
 const app = exp();
 
-/* ================= MIDDLEWARE ================= */
+// CORS
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://anvia-rescue-network.vercel.app",
+  process.env.CLIENT_URL
+].filter(Boolean);
 
-// CORS (IMPORTANT for frontend + Google redirect)
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. server-to-server, curl, mobile apps)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked for origin: ${origin}`));
+      }
+    },
     credentials: true
   })
 );
 
+// JSON parser
 app.use(exp.json());
+
+// Passport init
 app.use(passport.initialize());
 
-/* ================= STATIC FILES ================= */
+// Static uploads folder (absolute path so it works no matter where node was launched from)
 app.use("/uploads", exp.static(path.join(__dirname, "uploads")));
 
-/* ================= DATABASE ================= */
+// MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("DB connected"))
-  .catch((err) => console.log("DB error:", err));
+  .then(() => {
+    console.log("db connected");
+  })
+  .catch((err) => {
+    console.log(err);
+  });
 
-/* ================= ROUTES ================= */
-
-// AUTH (IMPORTANT: this decides /auth/google route)
+// Routes
 app.use("/auth", authApp);
-
 app.use("/rescue", rescueApp);
 app.use("/volunteer", volunteerApp);
 app.use("/donation", donationApp);
 app.use("/admin", adminApp);
 
-/* ================= HEALTH CHECK ================= */
-app.get("/", (req, res) => {
-  res.send("ANVIA backend running ");
-});
-
-/* ================= ERROR HANDLER ================= */
+// Error handler
 app.use((err, req, res, next) => {
   res.status(500).json({
     message: err.message
   });
 });
 
-/* ================= START SERVER ================= */
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+// Server start
+app.listen(process.env.PORT, () => {
+  console.log(`server running on port ${process.env.PORT}`);
 });
