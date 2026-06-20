@@ -1,75 +1,79 @@
 import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
+import { v2 as cloudinary } from "cloudinary";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Absolute path to <backend-root>/uploads, independent of process.cwd()
-const uploadsRoot = path.join(__dirname, "..", "uploads");
-
-const animalsDir = path.join(uploadsRoot, "animals");
-const updatesDir = path.join(uploadsRoot, "updates");
-
-// make sure the folders actually exist before multer tries to write into them
-fs.mkdirSync(animalsDir, { recursive: true });
-fs.mkdirSync(updatesDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (
-      req.originalUrl.includes(
-        "/update/"
-      )
-    ) {
-      cb(null, updatesDir);
-    } else {
-      cb(null, animalsDir);
-    }
-  },
-
-  filename: (req, file, cb) => {
-    cb(
-      null,
-      Date.now() +
-        path.extname(
-          file.originalname
-        )
-    );
-  }
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const fileFilter = (
-  req,
-  file,
-  cb
-) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp"
-  ];
+const storage = multer.memoryStorage();
 
-  if (
-    allowedTypes.includes(
-      file.mimetype
-    )
-  ) {
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+  if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(
-      new Error(
-        "only image files allowed"
-      )
-    );
+    cb(new Error("only image files allowed"));
   }
 };
 
-const uploadImage = multer({
+const multerUpload = multer({
   storage,
-  fileFilter
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
 });
+
+function getCloudinaryFolder(fieldName) {
+  if (fieldName === "animalImage") {
+    return "anvia/animals";
+  }
+
+  return "anvia/updates";
+}
+
+function uploadToCloudinary(fieldName) {
+  return async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return next();
+      }
+
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: getCloudinaryFolder(fieldName),
+            resource_type: "image",
+          },
+          (error, uploadResult) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(uploadResult);
+            }
+          }
+        );
+
+        stream.end(req.file.buffer);
+      });
+
+      req.file.path = result.secure_url;
+      req.file.filename = result.public_id;
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+const uploadImage = {
+  single(fieldName) {
+    return [multerUpload.single(fieldName), uploadToCloudinary(fieldName)];
+  },
+};
 
 export default uploadImage;
