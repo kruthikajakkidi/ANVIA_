@@ -30,7 +30,7 @@ const app = exp();
 // CORS
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://anvia-rescue-network.vercel.app",
+  "https://anvia-animal-rescue-network.vercel.app",
   process.env.CLIENT_URL
 ].filter(Boolean);
 
