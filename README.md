@@ -97,7 +97,7 @@ Connecting frontend pages with backend APIs for authentication, rescue reports, 
 
 ⚙️ How to Run (Short)
 1. Clone Project
-git clone https://github.com/your-username/anvia.git
+git clone https://github.com/kruthikajakkidi/anvia_.git
 cd anvia
 2. Backend
 cd backend
